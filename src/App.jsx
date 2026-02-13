@@ -74,7 +74,7 @@ function App() {
       </main>
 
       <footer className="max-w-7xl mx-auto mt-12 text-center text-gray-500 text-sm border-t border-white/5 pt-8">
-        <p>© JRC • 2026</p>
+        <p>NeuralVision v1.1.2 © JRC • 2026</p>
       </footer>
     </div>
   );
