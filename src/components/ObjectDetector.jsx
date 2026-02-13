@@ -190,46 +190,66 @@ export default function ObjectDetector() {
                     <div className="absolute inset-0 pointer-events-none overflow-hidden">
                         {predictions.map((pred, i) => {
                             // Robust Scaling for object-cover
-                            let style = {};
                             const element = mode === 'live' ? webcamRef.current?.video : mediaRef.current;
+                            if (!element) return null;
 
-                            if (element) {
-                                const videoWidth = element.videoWidth || element.naturalWidth;
-                                const videoHeight = element.videoHeight || element.naturalHeight;
-                                const container = element.parentElement; // The container div
+                            const videoWidth = element.videoWidth || element.naturalWidth;
+                            const videoHeight = element.videoHeight || element.naturalHeight;
+                            const container = element.parentElement;
 
-                                if (videoWidth && videoHeight && container) {
-                                    const { clientWidth: containerWidth, clientHeight: containerHeight } = container;
+                            if (!videoWidth || !videoHeight || !container) return null;
 
-                                    // Calculate scaling for object-cover
-                                    const scale = Math.max(containerWidth / videoWidth, containerHeight / videoHeight);
+                            const { clientWidth: containerWidth, clientHeight: containerHeight } = container;
 
-                                    // Dimensions of the video as displayed
-                                    const displayedWidth = videoWidth * scale;
-                                    const displayedHeight = videoHeight * scale;
+                            // Calculate scaling for object-cover
+                            const scale = Math.max(containerWidth / videoWidth, containerHeight / videoHeight);
 
-                                    // Offsets (centering)
-                                    const offsetX = (containerWidth - displayedWidth) / 2;
-                                    const offsetY = (containerHeight - displayedHeight) / 2;
+                            // Dimensions of the video as displayed
+                            const displayedWidth = videoWidth * scale;
+                            const displayedHeight = videoHeight * scale;
 
-                                    style = {
-                                        left: pred.bbox[0] * scale + offsetX,
-                                        top: pred.bbox[1] * scale + offsetY,
-                                        width: pred.bbox[2] * scale,
-                                        height: pred.bbox[3] * scale,
-                                    };
-                                }
-                            }
+                            // Offsets (centering)
+                            const offsetX = (containerWidth - displayedWidth) / 2;
+                            const offsetY = (containerHeight - displayedHeight) / 2;
+
+                            const rawStyle = {
+                                left: pred.bbox[0] * scale + offsetX,
+                                top: pred.bbox[1] * scale + offsetY,
+                                width: pred.bbox[2] * scale,
+                                height: pred.bbox[3] * scale,
+                            };
+
+                            // Clamping Logic with safety margin
+                            const MARGIN = 10;
+                            const left = Math.max(MARGIN, Math.min(rawStyle.left, containerWidth - rawStyle.width - MARGIN));
+                            const top = Math.max(MARGIN, Math.min(rawStyle.top, containerHeight - rawStyle.height - MARGIN));
+
+                            // Override style with clamped values
+                            const clampedStyle = {
+                                ...rawStyle,
+                                left,
+                                top,
+                                maxWidth: containerWidth - left - MARGIN,
+                                maxHeight: containerHeight - top - MARGIN
+                            };
+
+                            // Smart Label Positioning
+                            const isNearTop = top < 40;
 
                             return (
                                 <motion.div
                                     key={i}
                                     initial={{ opacity: 0, scale: 0.8 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="absolute border-2 border-blue-500 bg-blue-500/10 rounded-lg shadow-[0_0_10px_rgba(59,130,246,0.5)] flex flex-col items-start justify-end p-1"
-                                    style={style}
+                                    className="absolute border-2 border-blue-500 bg-blue-500/10 rounded-lg shadow-[0_0_10px_rgba(59,130,246,0.5)] flex flex-col p-1"
+                                    style={clampedStyle}
                                 >
-                                    <div className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1">
+                                    <div
+                                        className={cn(
+                                            "bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1 absolute whitespace-nowrap z-10",
+                                            isNearTop ? "top-0.5 left-0.5" : "bottom-full left-0 mb-1"
+                                        )}
+                                    >
                                         <span>{pred.class.toUpperCase()}</span>
                                         <span className="text-blue-200">|</span>
                                         <span>{Math.round(pred.score * 100)}%</span>
